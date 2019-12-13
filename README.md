@@ -4,11 +4,11 @@ p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Times New Roman'; min-heigh
 span.s1 {color: #000000}
 span.Apple-tab-span {white-space:pre}
 
-**Study:**Evaluation of laser scanning confocal microscopy as a method for characterizing reef-building coral tissue thickness and Symbiodiniaceae fluorescence
+**Study:** Evaluation of laser scanning confocal microscopy as a method for characterizing reef-building coral tissue thickness and Symbiodiniaceae fluorescence
 
-**Authors: **Huffmyer AS, SB Matsuda, AR Eggers, JD Lemus, RD Gates
+**Authors: ** Huffmyer AS, SB Matsuda, AR Eggers, JD Lemus, RD Gates
 
-**Corresponding Author: **AS Huffmyer, ashuffmyer@gmail.com, ashuff@hawaii.edu
+**Corresponding Author: ** AS Huffmyer, ashuffmyer@gmail.com, ashuff@hawaii.edu
 
 This study describes and evaluates the utility of laser-scanning confocal microscopy to measure physiological condition (Symbiodiniaceae fluorescence and depth of fluorescence) in reef-building corals.** **
 
