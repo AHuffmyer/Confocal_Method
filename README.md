@@ -6,25 +6,23 @@ span.Apple-tab-span {white-space:pre}
 
 **Study:** Evaluation of laser scanning confocal microscopy as a method for characterizing reef-building coral tissue thickness and Symbiodiniaceae fluorescence
 
-**Authors: ** Huffmyer AS, SB Matsuda, AR Eggers, JD Lemus, RD Gates
+**Authors:** Huffmyer AS, SB Matsuda, AR Eggers, JD Lemus, RD Gates
 
-**Corresponding Author: ** AS Huffmyer, ashuffmyer@gmail.com, ashuff@hawaii.edu
+**Corresponding Author:** AS Huffmyer, ashuffmyer@gmail.com, ashuff@hawaii.edu
 
-This study describes and evaluates the utility of laser-scanning confocal microscopy to measure physiological condition (Symbiodiniaceae fluorescence and depth of fluorescence) in reef-building corals.** **
+This study describes and evaluates the utility of laser-scanning confocal microscopy to measure physiological condition (Symbiodiniaceae fluorescence and depth of fluorescence) in reef-building corals.
 
-**Abstract: **
+**Abstract:**
 
 Predicting the sensitivity of reef-building corals to disturbance, including bleaching, requires an understanding of physiological responses to stressors, which may be limited by destructive sampling and the capacity of common methodologies to characterize early life history stages. We developed a new methodology using laser scanning confocal microscopy (LSCM) to measure and track the physiological condition of corals. In a thermal stress experiment, we used LSCM to track coral condition during bleaching in adults and juveniles of two species, _Montipora capitata _and _Pocillopora acuta_. Depth of fluorescence in coral tissues provides a proxy measure of tissue thickness while fluorescence of Symbiodiniaceae populations relates to both population density and chlorophyll- content. In response to thermal stress, here were significant shifts in tissue thickness and Symbiodiniaceae fluorescence with differences in condition between life stages. This method is particularly well-suited for detecting shifts in physiological condition of living corals, especially in small juvenile colonies.  
 
-**Data, Scripts, and Outputs: **
+**Data, Scripts, and Outputs:**
 
 All data for analysis is contained in the Data folder. All analyses are conducted in the Confocal_Markdown_Final.Rmd file with output of the markdown file as Confocal_Markdown_Final.html. Running scripts in the R Markdown file will produce data summary files into the Output folder and final figures used in the manuscript will be generated in the Figures folder. 
 
- 
-
 The Data folder contains data files necessary for analysis to be loaded into the R Markdown script and are described below. 
 
-Validations folder: 
+**Validations folder:** 
 
 “AdultCoral_SymbiontCellCounts.csv” - Symbiont cells in adult coral tissues as measured on a hemocytometer. 
 
@@ -82,7 +80,7 @@ Validations folder: 
 
 “Thickness” = tissue thickness in microns measured at three locations on each slice
 
-Bleaching folder: 
+**Bleaching folder:** 
 
 “Bleaching_Chlorophyll_Content.csv” - Chlorophyll content of corals measured by spectrophotometry at the end of thermal stress experiment
 
