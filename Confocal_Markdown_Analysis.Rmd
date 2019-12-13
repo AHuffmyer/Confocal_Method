@@ -23,10 +23,6 @@ rm(list=ls(all=TRUE))
 knitr::opts_chunk$set(root.dir = "~/Huffmyer_Confocal_Data",warning=FALSE, message=FALSE)
 ```
 
-```{r, echo=FALSE, results=FALSE}
-getwd()
-```
-
 ```{r, echo=TRUE}
 #load packages
 library("plotrix") 
