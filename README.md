@@ -1,8 +1,3 @@
-p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Times New Roman'; color: #000000}
-p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Times New Roman'}
-p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Times New Roman'; min-height: 15.0px}
-span.s1 {color: #000000}
-span.Apple-tab-span {white-space:pre}
 
 **Study:** Evaluation of laser scanning confocal microscopy as a method for characterizing reef-building coral tissue thickness and Symbiodiniaceae fluorescence
 
@@ -40,6 +35,8 @@ The Data folder contains data files necessary for analysis to be loaded into the
 
 “Symbionts.cm2” = total symbiont cells per cm^2 area of tissue
 
+
+
 “AdultCoral_DissectScopeThickness.csv” - Adult coral tissue thickness measured on a dissecting microscope. 
 
 “Tunic” = tunic ID corresponding to species and colony ID number
@@ -47,6 +44,8 @@ The Data folder contains data files necessary for analysis to be loaded into the
 “Tissue” = tissue type at location of measurement (colony, polyp, or connecting tissue)
 
 “Thickness” = tissue thickness in microns
+
+
 
 “AdultCoral_ConfocalFluorescence.csv” - Adult coral symbiont fluorescence as measured by LSCM 
 
@@ -66,6 +65,8 @@ The Data folder contains data files necessary for analysis to be loaded into the
 
 “Symbiont.StDev” = standard deviation of fluorescence intensity of symbiont 
 
+
+
 “AdultCoral_ConfocalThickness.csv” - Adult coral depth of fluorescence as measured by LSCM
 
 “Sample” = sample ID corresponding to species and colony ID number
@@ -79,6 +80,8 @@ The Data folder contains data files necessary for analysis to be loaded into the
 “Location” = XY location of slice
 
 “Thickness” = tissue thickness in microns measured at three locations on each slice
+
+
 
 **Bleaching folder:** 
 
@@ -95,6 +98,8 @@ The Data folder contains data files necessary for analysis to be loaded into the
 “SurfaceArea” = surface area of sample determined by wax dipping in cm^2
 
 “Chla.SA” = Chlorophyll a content normalized to sample surface area (cm^2)
+
+
 
 “Bleaching_Scope_Thickness.csv” - Tissue thickness of corals measured on a dissecting microscope at the end of thermal stress experiment
 
@@ -117,6 +122,8 @@ The Data folder contains data files necessary for analysis to be loaded into the
 “rep4” = tissue thickness measurement of tissue tunic
 
 “Thickness” = mean sample tissue thickness across replicates 
+
+
 
 “Bleaching_Coral_Color.csv” - Bleaching score by coral pigmentation as a ratio of coral color to a white standard at the end of thermal stress experiment
 
@@ -144,6 +151,8 @@ The Data folder contains data files necessary for analysis to be loaded into the
 
 “Coral Percent White” = coral color value divided by white standard (coral : white)
 
+
+
 “Bleaching_Confocal_Fluorescence.csv” - Symbiodiniaceae fluorescence values measured by LSCM on corals at the beginning and end of thermal stress experiment
 
 “Day” = day of exposure in thermal stress experiment
@@ -163,6 +172,8 @@ The Data folder contains data files necessary for analysis to be loaded into the
 “Tissue.Intensity” = value of fluorescence intensity from host tissues
 
 “Symbiont.Intensity” = value of fluorescence intensity from Symbiodiniaceae
+
+
 
 “Bleaching_Confocal_Thickness.csv” - Depth of fluorescence values measured by LSCM on corals at the beginning and end of thermal stress experiment
 
