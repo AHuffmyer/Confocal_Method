@@ -1,0 +1,27 @@
+Sample,Colony,Species,LifeStage,Treatment,rep1,rep2,rep3,rep4,Thickness
+12a,12,Pocillopora acuta,Adult,Ambient,707,613,505,894,679.75
+12b,12,Pocillopora acuta,Adult,High,1016,625,715,582,734.5
+13a,13,Pocillopora acuta,Adult,Ambient,550,616,510,421,524.25
+13b,13,Pocillopora acuta,Adult,High,504,633,464,566,541.75
+14a,14,Pocillopora acuta,Adult,Ambient,648,623,512,629,603
+14b,14,Pocillopora acuta,Adult,High,559,574,242,383,439.5
+19a,19,Montipora capitata,Juvenile,Ambient,1679,1261,1411,1679,1507.5
+19b,19,Montipora capitata,Juvenile,High,1190,1019,1191,775,1043.75
+20a,20,Montipora capitata,Juvenile,Ambient,1341,1832,1067,1277,1379.25
+20b,20,Montipora capitata,Juvenile,High,1228,1507,1605,1456,1449
+21b,21,Montipora capitata,Juvenile,High,1238,1294,1895,1339,1441.5
+22a,22,Montipora capitata,Juvenile,Ambient,1589,2378,1977,1521,1866.25
+22b,22,Montipora capitata,Juvenile,High,1549,1320,1409,1704,1495.5
+23b,23,Montipora capitata,Juvenile,High,1201,869,1126,1154,1087.5
+28a,28,Pocillopora acuta,Juvenile,Ambient,538,636,560,580,578.5
+28b,28,Pocillopora acuta,Juvenile,High,531,479,511,455,494
+29a,29,Pocillopora acuta,Juvenile,Ambient,493,498,537,437,491.25
+29b,29,Pocillopora acuta,Juvenile,High,569,664,489,616,584.5
+30a,30,Pocillopora acuta,Juvenile,Ambient,768,855,797,707,781.75
+30b,30,Pocillopora acuta,Juvenile,High,526,558,763,580,606.75
+5a,5,Montipora capitata,Adult,Ambient,2372,1847,991,1203,1603.25
+5b,5,Montipora capitata,Adult,High,2020,1432,1398,2505,1838.75
+6a,6,Montipora capitata,Adult,Ambient,1454,1804,1970,1424,1663
+6b,6,Montipora capitata,Adult,High,2760,1079,1621,2184,1911
+7a,7,Montipora capitata,Adult,Ambient,2433,1595,1604,1643,1818.75
+7b,7,Montipora capitata,Adult,High,2328,1884,1917,1874,2000.75

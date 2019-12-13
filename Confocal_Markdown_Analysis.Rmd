@@ -1,0 +1,1445 @@
+---
+title: Evaluation of confocal microscopy for measurement of reef-building coral tissue thickness and Symbiodiniaceae communities
+author: "AS Huffmyer, SB Matsuda, AE Eggers, JD Lemus, RD Gates"
+date: '2019'
+output:
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+  pdf_document:
+    keep_tex: yes
+---
+##Setup
+
+Set up workspace, set options, and load required packages.
+
+```{r, echo=TRUE, show=FALSE}
+rm(list=ls(all=TRUE)) 
+```
+
+```{r setup, echo=TRUE}
+knitr::opts_chunk$set(root.dir = "~/Huffmyer_Confocal_Data",warning=FALSE, message=FALSE)
+```
+
+```{r, echo=FALSE, results=FALSE}
+getwd()
+```
+
+```{r, echo=TRUE}
+#load packages
+library("plotrix") 
+library("FSA")
+library("ggplot2") 
+library("reshape2")
+library("dplyr")  
+library("plyr")  
+library("pscl")
+library("gridExtra") 
+library("car") 
+library("lsmeans")
+library("nlme")
+library("effects")
+library("multcomp") 
+library("multcompView")
+library("vegan") 
+library("exactRankTests")
+library("mvtnorm")
+library("glmmADMB")
+library("PMCMR")
+library("lmtest")
+library("MuMIn")
+library("glmmTMB")
+library("lme4")
+library("lmerTest")
+library("HH")
+library("FSA")
+library("dunn.test")
+library("emmeans")
+library("tidyr")
+library("ggsci")
+library("cowplot")
+library("vegan")
+library("factoextra")
+library("ggfortify")
+library("ggbiplot")
+```
+
+##Analysis Overview
+
+1. Validation of measurements to compariative methodologies  
+    a. Examination of datasets and calculations  
+    b. Analysis of tissue thickness  
+    c. Analysis of symbiont densities and symbiont fluorescence  
+    d. Correlation of physiological characteristics  
+    e. Comparison of measurements over different tissue states    
+2. Utility of LSCM in documenting coral bleaching  
+    a. LSCM data collection: tissue thickness and symbiont fluorescence  
+    b. Correlation with comparative methodologies: chlorophyll content, tissue thickness, pigmentation  
+
+##Validation of LSCM Methodology
+###1. Data Manipulation
+####**A) Calculations**
+Raw data sets are inputted and manipulated to calculate the following in adult corals:   
+(1) Average cell counts on hemocytometer   
+(2) Average tissue thickness on dissecting scope    
+(3) Average tissue thickness on confocal  
+(4) Average symbiont fluorescence on confocal    
+
+
+```{r, echo=TRUE, results=FALSE}
+#load data set for cell counts in adult tissues by hemocytometer
+cells<-read.csv("Data/Validations/AdultCoral_SymbiontCellCounts.csv", header=TRUE, sep=",", na.strings="NA")
+
+#load data set for thickness in adult tissues by a dissecting microscope
+thickness<-read.csv("Data/Validations/AdultCoral_DissectScopeThickness.csv", header=TRUE, sep=",", na.strings="NA")
+
+#load data set for LSCM symbiont fluoresence in adult tissues
+fluorescence<-read.csv("Data/Validations/AdultCoral_ConfocalFluorescence.csv", header=TRUE, sep=",", na.strings="NA")
+
+#load data set for LSCM thickness in adult tissues
+zstack<-read.csv("Data/Validations/AdultCoral_ConfocalThickness.csv", header=TRUE, sep=",", na.strings="NA")
+
+#summarize cell counts for adult tissues
+
+#calculate average cell counts for each individual 
+totalcells <- aggregate(cells$Symbionts.cm2, by=list(cells$Sample, cells$Species), FUN=mean)
+totalcells<-rename(totalcells, c("Group.1"="Sample", "Group.2"="Species", "x"="Density"))
+#generate column to specify tissue type as "colony"
+totalcells$Tissue<-c("Colony")
+
+#summarize tissue thickness (via dissecting microscope) for adults
+#calculate average tissue thickness for each individual 
+averagethickness <- aggregate(thickness$Thickness, by=list(thickness$Tunic), FUN=mean)
+averagethickness<-rename(averagethickness, c("Group.1"="Sample", "x"="Thickness"))
+#generate column to specify tissue type as "colony"
+averagethickness$Tissue<-c("Colony")
+
+#summarize symbiont fluorescence by LSCM for adults
+#calculate average tissue intensity values
+meantissue <- aggregate(fluorescence$Tissue.Intensity, by=list(fluorescence$Sample, fluorescence$Species), FUN=mean)
+meantissue<-rename(meantissue, c("Group.1"="Sample", "Group.2"="Species", "x"="Tissue.Intensity"))
+
+#calculate average symbiont fluorescence for adults
+meansymbionts <- aggregate(fluorescence$Symbiont.Intensity, by=list(fluorescence$Sample, fluorescence$Species), FUN=mean)
+meansymbionts<-rename(meansymbionts, c("Group.1"="Sample", "Group.2"="Species", "x"="Symbiont.Intensity"))
+
+#merge symbionts and tissue dataframes together (note that tissue fluorescence is not analyzed here)
+glow<-merge(meantissue, meansymbionts)
+
+#summarize LSCM thickness for adults
+meanthick <- aggregate(zstack$Thickness, by=list(zstack$Sample, zstack$Species), FUN=mean)
+meanthick<-rename(meanthick, c("Group.1"="Sample", "Group.2"="Species", "x"="Zstack"))
+
+#merge all dataframes together
+master<-merge(totalcells, averagethickness)
+master<-merge(master, glow)
+master<-merge(master, meanthick)
+
+#pull area data from cells dataframe
+master$Area<-cells$AreaCM[match(master$Sample, cells$Sample)]
+
+#write csv of master dataframe
+write.csv(master, file="Output/AdultCoral_Master.csv")
+```
+
+From the manipulated data frame, load the curated master data file. The master data frames will be used for all subsequent analyses.  
+
+####**B) Load master dataframes** 
+
+**Adult master dataframe**
+
+```{r, echo=TRUE, eval=TRUE}
+master<-read.csv("Output/AdultCoral_Master.csv", header=TRUE, sep=",", na.strings="NA")
+```
+
+####**C) Calibrate LSCM Fluorescence Values**
+
+LSCM collects symbiont cell density data as the intensity of "red" (chlorophyll) fluorescence as specified in LSCM settings. This value can be calibrated to a % Relative Intensity value, by using the Red InSpeck fluorescent microbead kits. The intensity value calibration curves used in this study (specific settings are located in manuscript) are as follows:  
+
+Species          | Calibration Equation
+-------------    |-------------
+*M. capitata*    | (Red Intensity Value + 268.36) / 109.01
+*P. compressa*   | (Red Intensity Value + 231.16) / 113.73
+*P. varians*     | (Red Intensity Value + 32.77) / 41.087
+*P. acuta*       | (Red Intensity Value + 464.76) / 193.16 
+
+Symbiont intensity values are calibrated with this equation to generate a % RI value and merged into the master dataframes for adult corals.  
+
+
+```{r, results=FALSE}
+#Use conditional calculations by subsetting each species, then matching the values back into the master data sheets
+
+mcap_cal<-subset(master, Species=="MCAP", select=c(Sample, Species, Symbiont.Intensity))
+mcap_cal$Red<-(mcap_cal$Symbiont.Intensity+268.36)/109.01
+
+pcom_cal<-subset(master, Species=="PCOM", select=c(Sample, Species, Symbiont.Intensity))
+pcom_cal$Red<-(pcom_cal$Symbiont.Intensity+231.16)/113.73
+
+pvar_cal<-subset(master, Species=="PVAR", select=c(Sample, Species, Symbiont.Intensity))
+pvar_cal$Red<-(pvar_cal$Symbiont.Intensity+32.77)/41.087
+
+pacu_cal<-subset(master, Species=="PACU", select=c(Sample, Species, Symbiont.Intensity))
+pacu_cal$Red<-(pacu_cal$Symbiont.Intensity+464.76)/193.16
+
+#merge all Red values into master data frame
+calibrations<-bind_rows(mcap_cal, pcom_cal, pvar_cal, pacu_cal)
+
+#combine into master, adult, juvies data sheets
+master$Red<-calibrations$Red[match(master$Sample, calibrations$Sample)]
+```
+
+####**D) Examining Data Structure**
+
+*Adult Tissue Thickness: Dissecting Scope*
+
+```{r, results=TRUE}
+qqPlot(master$Thickness)
+```
+
+*Adult Tissue Thickness: LSCM*
+
+```{r, results=TRUE}
+qqPlot(master$Zstack)
+```
+
+*Adult Cell Density: Hemocytometer*
+
+```{r, results=TRUE}
+qqPlot(master$Density)
+```
+
+*Adult Cell Density: LSCM*
+
+```{r, results=TRUE}
+qqPlot(master$Red)
+```
+
+All data for adult corals are normally distributed. All data are then subsetted by species for further analysis.   
+
+```{r, results=FALSE}
+mcap<-subset(master, Species=="MCAP", c(Sample, Species, Tissue, Density, Thickness, Tissue.Intensity, Symbiont.Intensity, Zstack, Area, Red))
+pcom<-subset(master, Species=="PCOM", c(Sample, Species, Tissue, Density, Thickness, Tissue.Intensity, Symbiont.Intensity, Zstack, Area, Red))
+pvar<-subset(master, Species=="PVAR", c(Sample, Species, Tissue, Density, Thickness, Tissue.Intensity, Symbiont.Intensity, Zstack, Area, Red))
+pacu<-subset(master, Species=="PACU", c(Sample, Species, Tissue, Density, Thickness, Tissue.Intensity, Symbiont.Intensity, Zstack, Area, Red))
+```
+
+
+###2. Analysis of Tissue Thickness  
+
+Tissue thickness of adult corals by two methods: dissecting scope and LSCM. All tissue thickness values will be analyzed by ANOVA analyses.  
+
+####**A) Tissue Thickness**
+
+*Dissecting Microscope Method*  
+`model1a<-aov(Thickness~Species, data=master)`
+
+```{r, results=TRUE}
+model1a<-aov(Thickness~Species, data=master)
+summary(model1a)
+```
+
+```{r, results=TRUE}
+bartlett.test(Thickness~Species, data=master) #not violated
+```
+
+```{r, results=TRUE}
+test1a<-emmeans(model1a, "Species")
+cld(test1a, Letter="abcdefg")
+TukeyHSD(model1a)
+```
+
+ANOVA analysis indicates a significant effect of species on tissue thickness measured by a dissecting microscope. The Bartlett's test for homogeneity of variance is not violated.  
+
+*LSCM Method*
+`model1b<-aov(Zstack~Species, data=master)`
+
+```{r, results=TRUE}
+model1b<-aov(Zstack~Species, data=master)
+summary(model1b)
+```
+
+```{r, results=TRUE}
+bartlett.test(Zstack~Species, data=master) #not violated
+```
+
+```{r, results=TRUE}
+test1b<-emmeans(model1b, "Species")
+cld(test1b, Letter="abcdefg")
+TukeyHSD(model1b)
+```
+
+ANOVA analysis indicates a significant effect of species on tissue thickness measured by LSCM. The Bartlett's test for homogeneity of variance is not violated. 
+
+*Analyze effect of methodology on adult sample thickness*
+
+```{r, results=FALSE}
+#melt data frame to plot dissecting microscope scope and LSCM methods together
+dfm <- melt(master[,c('Species','Thickness','Zstack')],id.vars = 1)
+dfm$Group<-paste(dfm$Species,dfm$variable)
+```
+
+`model1c<-aov(value~variable, data=dfm)`, where value = thickness and variable = method.
+
+```{r, results=TRUE}
+model1c<-aov(value~variable, data=dfm)
+summary(model1c)
+```
+
+```{r, results=TRUE}
+model1c<-aov(value~Group, data=dfm)
+test1c<-emmeans(model1c, "Group")
+cld(test1c, Letter="abcdefg")
+TukeyHSD(model1c)
+```
+
+ANOVA analysis indicates that there is no significant effect of method on tissue thickness values in adult tissues.  
+
+Coefficient of variation (CV): Dissecting microscope and LSCM, respectively. 
+```{r, results=TRUE}
+#variability on scope
+sd(master$Thickness)/mean(master$Thickness)
+
+#variability on LSCM
+sd(master$Zstack)/mean(master$Zstack)
+```
+
+```{r, results=TRUE}
+Thick1 <- ddply(dfm, c("Species", "variable"), summarise,
+                N    = length(value[!is.na(value)]),
+                mean = mean(value, na.rm=TRUE),
+                sd   = sd(value, na.rm=TRUE),
+                se   = sd / sqrt(N), 
+                max = max(value, na.rm=TRUE)
+)
+knitr::kable(Thick1)
+```
+
+Generate a figure for display.  
+```{r, results=TRUE}
+par(mar = c(1, 1, 1, 1))
+
+ThickSpecies<-ggplot(Thick1, aes(x=Species, y=mean, fill=variable)) + 
+  geom_bar(position=position_dodge(), stat="identity", color="black") +
+  scale_fill_manual(name="Method",
+                    values=c("lightgray", "darkgray"),
+                    labels=c("Dissecting \nMicroscope", "LSCM"))+
+  scale_x_discrete(limits=c("PACU", "PVAR", "MCAP","PCOM"), labels=c( "P. acuta", "P. varians", "M. capitata", "P. compressa"))+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width=0.1,             
+                position=position_dodge(.9))+
+  theme_classic()+
+  ylim(0,2050)+
+  geom_text(x=0.78, y=625, label="a", size=8) + #pacuta dissecting
+  geom_text(x=1.22, y=625, label="a", size=8) + #pacuta confocal
+  geom_text(x=1.78, y=1525, label="bc", size=8) + #pvar dissecting
+  geom_text(x=2.22, y=1275, label="b", size=8) + #pvar confocal
+  geom_text(x=2.78, y=1925, label="c", size=8) + #mcap dissecting
+  geom_text(x=3.22, y=1975, label="c", size=8) + #mcap confocal
+  geom_text(x=3.78, y=1975, label="c", size=8) + #pcom dissecting
+  geom_text(x=4.22, y=1750, label="bc", size=8) + #pcom confocal
+  theme(legend.key.height=unit(1, "cm"))+
+  theme(text = element_text(size = 18))+
+  theme(axis.text = element_text(size = 18, color="black"))+
+  theme(axis.title = element_text(size = 18, face="bold"))+
+  theme(legend.title = element_text(size = 18, face="bold"))+
+  theme(legend.text = element_text(size = 18, color="black"))+
+  theme(axis.text.x = element_text(angle = 0, size=18, face="italic"))+
+  ylab(expression(bold(paste("Tissue Thickness ("*mu*"m)")))); ThickSpecies
+
+ggsave("Figures/Fig1a.pdf", plot=ThickSpecies, height=8, width=10, units = c("in"), dpi=300) #output figure
+```
+
+*Summary - Adult Tissue Thickness*   
+(1) There was a significant effect of species on tissue thickness as measured by both the dissecting microscope and LSCM methods.   
+(2) LSCM detected differences between species that was not distinguished using the dissecting microscope.  
+(3) There was no difference in tissue thickness using the two methods, indicating the LSCM method is valid.
+
+####**B) Correlation of Methodologies**
+
+*Correlations between LSCM and dissecting microscope measurements in adult coral tissue*   
+
+Conduct Pearson correlation test between LSCM and dissecting microscope measurements of tissue thickness in adult tissues.  
+
+```{r, results=TRUE}
+cor.test(master$Thickness, master$Zstack, method=c("pearson"))
+
+ThicknessCorrelation<-ggplot(master, aes(x=Thickness, y=Zstack)) + 
+              geom_point(aes(color=Species), size=3) +
+              scale_color_manual(name="Species",
+                    values=c("royalblue4", "red4", "darkgreen", "darkorchid4"), 
+                    labels=c("M. capitata", "P. acuta", "P. compressa", "P. varians"))+
+              geom_smooth(method=lm, color="black", se=FALSE)+
+              theme_classic()+
+              geom_text(x=2000, y=500, label="r=0.82, p<0.01", size=6, fontface="plain") + #correlation results
+              theme(axis.text = element_text(size = 18, color="black"))+
+              theme(axis.title = element_text(size = 18, face="bold"))+
+              theme(legend.title = element_text(size = 18, face="bold"))+
+              theme(legend.text = element_text(size = 18, color="black", face="italic"))+
+              ylab(expression(bold(paste("Depth of Fluorescence ("*mu*"m)")))) +
+              xlab(expression(bold(paste("Tissue Thickness ("*mu*"m)"))))
+ThicknessCorrelation
+
+ggsave("Figures/Fig1b.pdf", plot=ThicknessCorrelation, height=8, width=10, units = c("in"), dpi=300) #output figure
+```
+
+###3. Analysis of Symbiont Densities  
+
+Analysis of symbiont densities (cells per cm^2) as compared to symbiont fluorescence (%RI) by LSCM. All data analyzed using ANOVA analyses. 
+
+####**A) Symbiont Cell Densities - Cell Counts via Hemocytometer**
+
+*Adult tissue hemocytometer symbiont cell densiites* 
+
+`model3a<-aov(Density~Species, data=master)`
+
+```{r, results=TRUE}
+model3a<-aov(Density~Species, data=master)
+summary(model3a)
+```
+
+```{r, results=TRUE}
+bartlett.test(Density~Species, data=master) #not violated
+```
+
+```{r, results=TRUE}
+test3a<-emmeans(model3a, "Species")
+cld(test3a, Letter="abcdefg")
+TukeyHSD(model3a)
+```
+
+ANOVA analysis indicate that there is a significant difference in symbiont cell densities between species as measured by hemocytometer. Bartlett's test is not violated.  
+
+```{r, results=TRUE}
+Cells1 <- ddply(master, c("Species"), summarise,
+                N    = length(Density[!is.na(Density)]),
+                mean = mean(Density, na.rm=TRUE),
+                sd   = sd(Density, na.rm=TRUE),
+                se   = sd / sqrt(N), 
+                max = max(Density, na.rm=TRUE)
+)
+knitr::kable(Cells1)
+```
+
+Generate figure.     
+
+```{r, results=TRUE}
+#colors are "royalblue4", "red4", "darkgreen", "darkorchid4"
+AdultDensities<-ggplot(Cells1, aes(x=Species, y=mean, fill=Species)) + 
+  geom_bar(position=position_dodge(), stat="identity", colour="black") +
+  scale_fill_manual(name="Species",
+                    values=c("lightgray", "lightgray", "lightgray", "lightgray"))+
+  scale_x_discrete(limits=c("PACU", "PVAR", "MCAP", "PCOM"), labels=c("P. acuta", "P. varians", "M. capitata", "P. compressa"))+
+  scale_y_continuous(labels = scales::comma, limit=c(0,1250000))+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width=.1,             
+                position=position_dodge(.9))+
+  geom_text(x=1, y=580000, label="a", size=6) + #pacuta
+  geom_text(x=2, y=1110000, label="b", size=6) + #pvarians
+  geom_text(x=3, y=1090000, label="b", size=6) + #mcapitata
+  geom_text(x=4, y=750000, label="ab", size=6) + #pcompressa
+  theme_classic()+
+  theme(text = element_text(size = 18))+
+  theme(axis.text = element_text(size = 18, color="black"))+
+  theme(axis.text.x = element_text(size = 18, color="black", face="italic"))+
+  theme(axis.title = element_text(size = 18, face="bold"))+
+  theme(legend.position = "none")+
+  theme(legend.text = element_text(size = 18, color="black"))+
+  ylab(expression(bold(paste("Symbiodiniaceae Cells cm"^-2))))
+AdultDensities
+
+ggsave("Figures/Fig1d.pdf", plot=AdultDensities, height=8, width=8, units = c("in"), dpi=300) #output figure
+```
+
+####**B) Symbiont Fluorescence - LSCM**
+
+*Adult tissue LSCM symbiont fluorescence (%RI)*  
+
+`model3b<-aov(Red~Species, data=adults)`  
+
+```{r, results=TRUE}
+model3b<-aov(Red~Species, data=master)
+summary(model3b)
+```
+
+
+```{r, results=TRUE}
+bartlett.test(Red~Species, data=master) #not violated
+```
+
+
+```{r, results=TRUE}
+test3b<-emmeans(model3b, "Species")
+cld(test3b, Letter="abcdefg")
+TukeyHSD(model3b)
+```
+
+ANOVA analysis indicates that symbiont fluorescence (% RI) is significantly different between species.  Barlett's test is not violated.    
+
+```{r, results=TRUE}
+Red1 <- ddply(master, c("Species"), summarise,
+                N    = length(Red[!is.na(Red)]),
+                mean = mean(Red, na.rm=TRUE),
+                sd   = sd(Red, na.rm=TRUE),
+                se   = sd / sqrt(N), 
+                max = max(Red, na.rm=TRUE)
+)
+knitr::kable(Red1)
+```
+
+Generate figure.  
+
+```{r, results=TRUE}
+AdultRed<-ggplot(Red1, aes(x=Species, y=mean, fill=Species)) + 
+  geom_bar(position=position_dodge(), stat="identity", colour="black") +
+  scale_fill_manual(name="Species",
+                    values=c("darkgray", "darkgray", "darkgray", "darkgray"))+
+  scale_x_discrete(limits=c("PACU", "PVAR", "MCAP", "PCOM"), labels=c("P. acuta", "P. varians", "M. capitata", "P. compressa"))+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width=.1,             
+                position=position_dodge(.9))+
+  ylim(0,65)+
+  geom_text(x=1, y=39, label="ab", size=6) + #pacuta
+  geom_text(x=2, y=55.5, label="b", size=6) + #pvarians
+  geom_text(x=3, y=52, label="b", size=6) + #mcapitata
+  geom_text(x=4, y=35, label="a", size=6) + #pcompressa
+  theme_classic()+
+  theme(text = element_text(size = 18))+
+  theme(axis.text = element_text(size = 18, color="black"))+
+  theme(axis.text.x = element_text(size = 18, color="black", face="italic"))+
+  theme(axis.title = element_text(size = 18, face="bold"))+
+  theme(legend.position = "none")+
+  theme(legend.text = element_text(size = 18, color="black"))+
+  ylab(expression(bold(paste("Symbiodiniaceae Fluorescence (% RI)"))))
+AdultRed
+
+ggsave("Figures/Fig1c.pdf", plot=AdultRed, height=8, width=8, units = c("in"), dpi=300) #output figure
+```
+
+
+
+####**C) Correlation of methodologies**  
+
+Coefficient of variation (CV) of adult tissue cell densities on hemocytometer, fluorescence on LSCM, and chlorophyll content respectively: 
+  
+```{r, results=TRUE}
+sd(master$Density)/mean(master$Density)
+sd(master$Red)/mean(master$Red)
+```
+
+*Correlation of Red %RI and symbiont cell densities in adult corals*
+
+```{r, results=TRUE}
+cor.test(master$Density, master$Red, method=c("pearson"))
+
+CellsCorrelation<-ggplot(master, aes(x=Density, y=Red)) + 
+  geom_point(aes(color=Species), size=3) +
+  geom_smooth(color="black", method=lm, se=FALSE)+
+  scale_color_manual(name="Species",
+                    values=c("royalblue4", "red4", "darkgreen", "darkorchid4"), 
+                    labels=c("M. capitata", "P. acuta", "P. compressa", "P. varians"))+
+  theme_classic()+
+  scale_x_continuous(labels = scales::comma)+
+  geom_text(x=1200000, y=20, label="r=0.54, p<0.01", size=6) + #results
+  theme(text = element_text(size = 18))+
+  theme(axis.text = element_text(size = 18, color="black"))+
+  theme(axis.title = element_text(size = 18, face="bold"))+
+  theme(legend.title = element_text(size = 18, face="bold"))+
+  theme(legend.text = element_text(size = 18, color="black", face="italic"))+
+  ylab("Symbiodiniaceae Fluorescence (% RI)") +
+  xlab(expression(bold(paste("Symbiodiniaceae Cells cm"^-2))))
+CellsCorrelation
+
+ggsave("Figures/Fig1e.pdf", plot=CellsCorrelation, height=8, width=10, units = c("in"), dpi=300) #output figure
+```
+
+There is a significant correlation between cell density and LSCM red values.  
+
+*Summary - Symbiont Densities compared to LSCM*      
+
+(1) There was a significant effect of species on symbiont densities as measured by both the dissecting microscope and LSCM methods.  
+(2) Trends between species were similar between hemocytometer and LSCM measurements and were significantly correlated in adult samples.  
+(3) Low r value in correlation likely reflects decrease in chlorophyll fluorescence following decalcification and fixation.   
+
+###4. Coefficient of variation  
+
+Summarize variation of each metric for each species.  
+
+```{r, results=TRUE}
+CV1 <- ddply(master, c("Species"), summarise,
+                meanRed = mean(Red, na.rm=TRUE),
+                sdRed   = sd(Red, na.rm=TRUE),
+                CVRed = (sdRed/meanRed), 
+                meanDensity = mean(Density, na.rm=TRUE),
+                sdDensity   = sd(Density, na.rm=TRUE),
+                CVDensity = (sdDensity/meanDensity), 
+                meanZstack = mean(Zstack, na.rm=TRUE),
+                sdZstack   = sd(Zstack, na.rm=TRUE),
+                CVZstack = (sdZstack/meanZstack), 
+                meanThickness = mean(Thickness, na.rm=TRUE),
+                sdThickness   = sd(Thickness, na.rm=TRUE), 
+                CVThickness = (sdThickness/meanThickness)
+)
+
+knitr::kable(CV1)
+```
+
+
+##Bleaching Experiment  
+
+Juvenile and adult corals of M. capitata and P. acuta were exposed to a thermal stress to test the utility of LSCM in documenting physiological characteristics across enviornmental conditions. Here, we measure tissue thickness and symbiont fluorescence using LSCM at beginning and end points and destructively sample corals for tissue thickness, symbiont cell density and symbiont fluorescence at the end point. We display tissue thickness and symbiont fluorescence over time using LSCM measurements and calculate these metrics in ambient and high temperature groups at the final time point.   
+
+The purpose of this experiment is to test whether LSCM is 1) valid in use with living corals across physiological conditions; 2) investigate the correlation of LSCM tissue thickness and tissue thickness on the dissecting microsope; and 3) investigate the correlation of LSCM symbiont fluorescence with chlorophyll content and coral pigmentation.  
+
+As confocal microscopy allows for measurement on living corals, data is available at initial and end points of bleaching experiment. Destructive measures (chlorophyll a content, tissue thickness on dissecting scope) as well as comparative measurement of coral pigmentation collected by photographs was collected at the endpoint of the experiment.  
+
+###1. LSCM Tissue Thickness   
+
+Load dataset and calculate mean tissue thickness values for each individual coral at start and ending timepoints collected by LSCM.  
+
+```{r, results=FALSE}
+#load dataset
+bleach_thick<-read.csv("Data/Bleaching/Bleaching_Confocal_Thickness.csv", header=TRUE, sep=",", na.strings="NA")
+
+#calculate mean for each sample
+bleach1 <- ddply(bleach_thick, c("Timepoint", "Sample", "Treatment", "Species", "LifeStage", "Colony"), summarise,
+                Thickness = mean(Thickness, na.rm=TRUE)
+)
+
+#summarize by species at each timepoint and treatment
+bleachSum <- ddply(bleach1, c("Timepoint", "Treatment", "Species", "LifeStage"), summarise,
+                N    = length(Thickness[!is.na(Thickness)]),
+                mean = mean(Thickness, na.rm=TRUE),
+                sd   = sd(Thickness, na.rm=TRUE),
+                se   = sd / sqrt(N)
+)
+knitr::kable(bleachSum)
+
+#set the intial timepoint as the reference level
+bleachSum$Timepoint <- relevel(bleachSum$Timepoint, ref = "Initial")
+
+#set the intial timepoint as the reference level
+bleach1$Timepoint <- relevel(bleach1$Timepoint, ref = "Initial")
+
+#subset by species 
+bleach1$Group<-paste(bleach1$LifeStage, bleach1$Treatment)
+bleach_mcap<-subset(bleach1, Species=="Montipora capitata", c(Treatment, Timepoint, Species, LifeStage, Sample, Thickness, Group, Colony))
+bleach_pacu<-subset(bleach1, Species=="Pocillopora acuta", c(Treatment, Timepoint, Species, LifeStage, Sample, Thickness, Group, Colony))
+
+```
+
+
+Display a figure of mean tissue thickness over the course of bleaching with a separate plot for each species.  
+
+
+```{r, results=TRUE}
+FigBleach1 <- ggplot(data=bleachSum, aes(x=Timepoint, y=mean, group=interaction(Treatment, LifeStage), colour=Treatment, linetype=LifeStage)) + 
+  facet_wrap(~Species, scale="free")+
+  geom_line(position=position_dodge(0.2), size=1.3) +
+  scale_linetype_manual(name = "Life Stage", values=c("solid", "dotted"))+
+  scale_color_manual(name = "Temperature", values=c("blue", "red")) +
+  geom_point(size=3, position=position_dodge(0.2)) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0, linetype="solid", position=position_dodge(0.2), size=1.3) +
+  xlab("Timepoint") +
+  ylab(expression(bold(paste("Depth of Fluorescence (", mu, "m)")))) +
+  ylim(0,2000) +
+  theme_bw()+
+  theme_classic() +
+  theme(panel.background = element_blank()) +
+  theme(strip.text.x = element_text(face="italic"))+
+  theme(text = element_text(size=20),
+        panel.border = element_blank(), 
+        plot.background =element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text = element_text(size=18, colour="black"),
+        legend.title=element_text(face="bold"),
+        legend.position="right",
+        plot.title=element_text(),
+        legend.text = element_text(size = 20),
+        axis.title.y=element_text(margin=margin(), face="bold"), 
+        axis.title.x=element_text(margin=margin(), face="bold"))
+FigBleach1
+
+ggsave(filename="Figures/Fig2a.pdf", plot=FigBleach1, dpi=300, width=10, height=7, units="in")
+
+```
+
+Analyze the differences in tissue thickness between timepoints between temperature and life stage with a separate repeated measures linear mixed effect model for each species.  
+
+*Montipora capitata*: 
+```{r, results=TRUE}
+modelB1a<-lmer(Thickness~LifeStage * Treatment * Timepoint + (1|Colony) + (1|Sample), data=bleach_mcap)
+summary(modelB1a)
+anova(modelB1a, type=2)
+
+emm = emmeans(modelB1a, ~ LifeStage, adjust="tukey") #can choose other adjustment methods
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+emm = emmeans(modelB1a, ~ Treatment, adjust="tukey") #can choose other adjustment methods
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+emm = emmeans(modelB1a, ~ Timepoint, adjust="tukey") #can choose other adjustment methods
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+
+emm = emmeans(modelB1a, ~ LifeStage * Treatment *Timepoint, adjust="tukey") #can choose other adjustment methods
+cld(emm, Letters=c(LETTERS)) #letter display
+```
+Assumptions of analysis are met.  
+```{r, results=TRUE}
+qqPlot(residuals(modelB1a))
+bartlett.test(residuals(modelB1a)~bleach_mcap$Group) #not violated
+```
+
+There was a significant effect of life stage and timepoint in *Montipora capitata*, but no effect of temperature treatment.   
+
+*Pocillopora acuta*: 
+```{r, results=TRUE}
+modelB1b<-lmer(Thickness~LifeStage * Treatment * Timepoint + (1|Sample) + (1|Colony), data=bleach_pacu)
+summary(modelB1b)
+anova(modelB1b, type=2)
+
+emm = emmeans(modelB1b, ~ LifeStage, adjust="tukey") #can choose other adjustment methods
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+emm = emmeans(modelB1b, ~ Treatment, adjust="tukey") #can choose other adjustment methods
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+emm = emmeans(modelB1b, ~ Timepoint, adjust="tukey") #can choose other adjustment methods
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+```
+Assumptions of analysis are met.  
+```{r, results=TRUE}
+qqPlot(residuals(modelB1b))
+bartlett.test(residuals(modelB1b)~bleach_pacu$Group) #not violated
+```
+
+There was a significant effect of treatment, timepoint, interaction between treatment and timepiont, and an interaction between lifestage, treatment, and timepoint on *Pocillopora acuta* tissue thickness. This analysis indicates that there was a negative effect of high temperature by the final timpoint. The three way interaction suggests that life stages responded differently (+ effect of juvenile stage) to high temperature treatment at the final timepoint.
+
+Coefficient of variation (CV):  
+```{r, results=TRUE}
+sd(bleach1$Thickness)/mean(bleach1$Thickness)
+
+CVa <- ddply(bleach1, c("Treatment", "Species", "LifeStage"), summarise,
+                mean = mean(Thickness, na.rm=TRUE),
+                sd   = sd(Thickness, na.rm=TRUE),
+                CV   = (sd / mean)
+)
+knitr::kable(CVa)
+```
+
+###2. LSCM Symbiont Fluorescence: Initial and endpoints  
+
+Load dataset and calculate mean symbiont fluorescence values for each individual coral at start and ending timepoints collected by LSCM.    
+
+```{r, results=FALSE}
+#load dataset
+bleach_red<-read.csv("Data/Bleaching/Bleaching_Confocal_Fluorescence.csv", header=TRUE, sep=",", na.strings="NA")
+
+#calculate mean for each sample
+bleach2 <- ddply(bleach_red, c("Timepoint", "Sample"), summarise,
+                Intensity = mean(Symbiont.Intensity, na.rm=TRUE)
+)
+
+#match identifying values into this data frame
+bleach2$Species<-bleach_red$Species[match(bleach2$Sample, bleach_red$Sample)]
+bleach2$LifeStage<-bleach_red$LifeStage[match(bleach2$Sample, bleach_red$Sample)]
+bleach2$Treatment<-bleach_red$Treatment[match(bleach2$Sample, bleach_red$Sample)]
+bleach2$Unique<-paste(bleach2$Sample, bleach2$Timepoint)
+bleach2$Colony<-bleach_red$Colony[match(bleach2$Sample, bleach_red$Sample)]
+
+#conduct calibrations to convert intensity values to Red %RI values
+#Use conditional calculations by subsetting each species, then matching the values back into the master data sheets
+
+mcap_cal<-subset(bleach2, Species=="Montipora capitata", select=c(Sample, Treatment, Intensity, Unique))
+mcap_cal$Red<-(mcap_cal$Intensity+268.36)/109.01
+
+pacu_cal<-subset(bleach2, Species=="Pocillopora acuta", select=c(Sample, Treatment, Intensity, Unique))
+pacu_cal$Red<-(pacu_cal$Intensity+464.76)/193.16
+
+#merge all Red values into master data frame
+calibrations<-bind_rows(mcap_cal, pacu_cal)
+
+#combine into data sheet
+bleach2$Red<-calibrations$Red[match(bleach2$Unique, calibrations$Unique)]
+
+#set the intial timepoint as the reference level
+bleach_red$Timepoint <- relevel(bleach_red$Timepoint, ref = "Initial")
+
+#set the intial timepoint as the reference level
+bleach2$Timepoint <- relevel(bleach2$Timepoint, ref = "Initial")
+
+#summarize by species at each timepoint and treatment
+bleachRed <- ddply(bleach2, c("Timepoint", "Treatment", "Species", "LifeStage"), summarise,
+                N    = length(Red[!is.na(Red)]),
+                mean = mean(Red, na.rm=TRUE),
+                sd   = sd(Red, na.rm=TRUE),
+                se   = sd / sqrt(N)
+)
+knitr::kable(bleachRed)
+
+#subset by species and add a group name for analysis of homogeneity of variance
+bleach2$Group<-paste(bleach2$LifeStage, bleach2$Treatment)
+bleach2$Colony<-bleach1$Colony[match(bleach2$Sample, bleach1$Sample)]
+bleachRed_mcap<-subset(bleach2, Species=="Montipora capitata", c(Treatment, Timepoint, Species, LifeStage, Red, Sample, Group, Colony))
+bleachRed_pacu<-subset(bleach2, Species=="Pocillopora acuta", c(Treatment, Timepoint, Species, LifeStage, Red, Sample, Group, Colony))
+
+```
+
+Display a figure of mean symbiont fluorescence over the course of bleaching with a separate plot for each species.   
+
+```{r, results=TRUE}
+FigBleach2 <- ggplot(data=bleachRed, aes(x=Timepoint, y=mean, group=interaction(Treatment, LifeStage), colour=Treatment, linetype=LifeStage)) + 
+  facet_wrap(~Species, scale="free")+
+  geom_line(position=position_dodge(0.09), size=1.3) +
+  scale_linetype_manual(name = "Life Stage", values=c("solid", "dotted"))+
+  scale_color_manual(name = "Temperature", values=c("blue", "red")) +
+  geom_point(size=3, position=position_dodge(0.09)) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0, linetype="solid", position=position_dodge(0.09), size=1.3) +
+  xlab("Timepoint") +
+  ylab(expression(bold(paste("Symbiodiniaceae Fluorescence (% RI)"))))+
+  ylim(0,75) +
+  theme_bw()+
+  theme_classic() +
+  theme(panel.background = element_blank()) +
+  theme(strip.text.x=element_text(face="italic")) +
+  theme(text = element_text(size=20),
+        panel.border = element_blank(), 
+        plot.background =element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text = element_text(size=18, colour="black"),
+        legend.title=element_text(face="bold"),
+        legend.position="right",
+        plot.title=element_text(),
+        legend.text = element_text(size = 20),
+        axis.title.y=element_text(margin=margin(), face="bold"), 
+        axis.title.x=element_text(margin=margin(), face="bold"))
+FigBleach2
+
+ggsave(filename="Figures/Fig2b.pdf", plot=FigBleach2, dpi=300, width=10, height=7, units="in")
+
+```
+
+Analyze the differences in symbiont fluorescence over time between temperature and life stage with a separate model for each species.  
+
+*Montipora capitata*: 
+```{r, results=TRUE}
+modelB2a<-lmer(Red~LifeStage * Treatment * Timepoint + (1|Sample) + (1|Colony), data=bleachRed_mcap)
+summary(modelB2a)
+anova(modelB2a, type=2)
+
+emm = emmeans(modelB2a, ~ LifeStage, adjust="tukey") #can choose other adjustment methods
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+emm = emmeans(modelB2a, ~ Treatment, adjust="tukey") #can choose other adjustment methods
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+emm = emmeans(modelB2a, ~ Timepoint, adjust="tukey") #can choose other adjustment methods
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+
+emm = emmeans(modelB2a, ~ Treatment * LifeStage * Timepoint, adjust="tukey") #can choose other adjustment methods
+cld(emm, Letters=c(LETTERS)) 
+```
+
+Assumptions of analysis are met.  
+```{r, results=TRUE}
+qqPlot(residuals(modelB2a))
+bartlett.test(residuals(modelB2a)~bleachRed_mcap$Group) #not violated
+```
+
+There is a significant negative effect of high temperature treatment and a decrease in values across groups at the final timepoint in *Montipora capitata*. 
+
+*Pocillopora acuta*: 
+```{r, results=TRUE}
+modelB2b<-lmer(Red~LifeStage * Treatment * Timepoint + (1|Sample) + (1|Colony), data=bleachRed_pacu)
+summary(modelB2b)
+anova(modelB2b, type=2)
+
+emm = emmeans(modelB2b, ~ LifeStage, adjust="tukey") 
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+emm = emmeans(modelB2b, ~ Treatment, adjust="tukey") 
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+emm = emmeans(modelB2b, ~ Timepoint, adjust="tukey")
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+
+emm = emmeans(modelB2b, ~ Timepoint * Treatment * LifeStage, adjust="tukey")
+cld(emm, Letters=c(LETTERS)) #letter display
+```
+
+Assumptions of analysis are met.  
+```{r, results=TRUE}
+qqPlot(residuals(modelB2b))
+bartlett.test(residuals(modelB2b)~bleachRed_pacu$Group) #not violated
+```
+
+There was a significant effect of lifestage, treatment, timepoint, and the interaction of treatment and timepoint on *Pocillopora acuta* symbiont fluorescence. This indicates there was a decrease in symbiont fluorescence by the final timepoint at high temperature and an increase in fluorescence in juvenile corals as compared to adults.  
+
+Coefficient of variation (CV):  
+```{r, results=TRUE}
+sd(bleach2$Red)/mean(bleach2$Red)
+
+CVb <- ddply(bleach2, c("Treatment", "Species", "LifeStage"), summarise,
+                mean = mean(Red, na.rm=TRUE),
+                sd   = sd(Red, na.rm=TRUE),
+                CV   = (sd / mean)
+)
+knitr::kable(CVb)
+```
+
+###3. Comparative metrics: Chlorophyll, Thickness by Dissecting Microscope, and Pigmentation/Color at the endpoint of bleaching exposure 
+
+Calculate mean chlorophyll a content, color, and tissue thickness (by dissecting scope method) values in Ambient and High treatments and analyze these values with ANOVA tests and linear mixed effect model analysis. Repeated measures will be included in models using the paired colony ID. *Montipora capitata* juvenile colonies did not have a pair and are therefore randomly paired with another individual. 
+
+####**A) Chlorophyll Content**  
+
+First, assemble data frame for chlorophyll a content averaged for each coral at High and Ambient temperature treatments. 
+
+```{r, results=FALSE}
+#chlorophyll
+compareChl<-read.csv("Data/Bleaching/Bleaching_Chlorophyll_Content.csv", header=TRUE, sep=",", na.strings="NA")
+compareChl$Colony<-as.factor(compareChl$Colony)
+compareChl$Treatment<-bleach2$Treatment[match(compareChl$Sample, bleach2$Sample)]
+compareChl$Species<-bleach2$Species[match(compareChl$Sample, bleach2$Sample)]
+compareChl$LifeStage<-bleach2$LifeStage[match(compareChl$Sample, bleach2$Sample)]
+
+compareChl<-compareChl[c("Species", "LifeStage", "Colony", "Chla.SA", "Treatment", "Sample")]
+
+compareChl_mcap <- compareChl[which(compareChl$Species == "Montipora capitata"),]
+compareChl_mcap <- compareChl_mcap[which(compareChl_mcap$LifeStage == "Adult"),]
+compareChl_pacu <- compareChl[which(compareChl$Species == "Pocillopora acuta"),]
+```
+
+Summarize and display a chart of mean chlorophyll content. 
+
+```{r, results=TRUE}
+compare3<- ddply(compareChl, c("Species", "LifeStage", "Treatment"), summarise,
+                N    = length(Chla.SA[!is.na(Chla.SA)]),
+                mean = mean(Chla.SA, na.rm=TRUE),
+                sd   = sd(Chla.SA, na.rm=TRUE),
+                se   = sd / sqrt(N)
+)
+compare3
+
+CompareBleach3 <- ggplot(data=compare3, aes(x=Treatment, y=mean, group=LifeStage, shape=LifeStage, color=Treatment)) + 
+  scale_shape_manual(name = "Life Stage", values = c(19,21))+
+  facet_wrap(~Species)+
+  scale_color_manual(values=c("blue", "red"))+
+  geom_point(aes(color=Treatment), size=3, position=position_dodge(0.3)) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), color="black", width=0, linetype="solid", position=position_dodge(0.3), size=0.8) +
+  xlab("Treatment") +
+  ylab(expression(paste("Chlorophyll content (", mu, "g cm"^-2, ")"))) +
+  ylim(-0,0.3) +
+  theme_bw()+
+  theme_classic() +
+  theme(strip.text.x=element_text(face="italic")) +
+  theme(panel.background = element_blank()) +
+  theme(text = element_text(size=20),
+        panel.border = element_blank(), 
+        plot.background =element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.y = element_text(size=18, colour="black"),
+        axis.text.x = element_text(size=18, colour="black", face="plain"),
+        legend.title=element_text(),
+        legend.position="none",
+        plot.title=element_text(),
+        legend.text = element_text(size = 20),
+        axis.title.y=element_text(margin=margin(t = 0, r = 5, b = 0, l = 0), face="bold"), 
+        axis.title.x=element_text(margin=margin(t = 5, r = 0, b = 0, l = 0), face="bold"))
+CompareBleach3
+
+ggsave(filename="Figures/FigS1b.pdf", plot=CompareBleach3, dpi=300, width=6.5, height=8, units="in")
+```
+
+Not that chlorophyll extraction from juvenile *M. capitata* was not successful and is not included in the dataset here. 
+
+Analyze effect of treatment and lifestage on chlorophyll content with a separate model for each species. 
+
+*Montipora capitata*: 
+```{r, results=TRUE}
+modelB3a<-lmer(Chla.SA ~ Treatment + (1|Colony), data=compareChl_mcap)
+summary(modelB3a)
+anova(modelB3a, type=2)
+```
+Assumptions of analysis are not met.  
+```{r, results=TRUE}
+qqPlot(residuals(modelB3a))
+bartlett.test(residuals(modelB3a)~compareChl_mcap$Treatment) #not violated
+
+kruskal.test(compareChl_mcap$Chla.SA~compareChl_mcap$Treatment) #not significant
+
+#conduct non parametric post hoc tets of kruskal test
+
+chl_ph = dunnTest(Chla.SA ~ Treatment,
+              data=compareChl_mcap,
+              method="bonferroni")    # Can adjust p-values;
+chl_ph
+```
+
+There is no effect of treatment in *M. capitata*. 
+
+*Pocillopora acuta*: 
+```{r, results=FALSE}
+modelB3b<-lmer(Chla.SA~LifeStage * Treatment + (1|Colony), data=compareChl_pacu)
+summary(modelB3b)
+anova(modelB3b, type=2)
+```
+Assumptions of analysis are met. 
+```{r, results=TRUE}
+qqPlot(residuals(modelB3b))
+compareChl_pacu$Group<-paste(compareChl_pacu$Treatment, compareChl_pacu$LifeStage)
+bartlett.test(residuals(modelB3b)~compareChl_pacu$Group) #violated due to large variability in ambient treatment as compared to high
+```
+
+As assumption of homogeneity of variance is not met, we proceed with analyzing effect of treatment and lifestage using a Kruskal Wallis Test.  
+
+```{r, results=TRUE}
+kruskal.test(compareChl_pacu$Chla.SA~compareChl_pacu$Treatment) #significant
+kruskal.test(compareChl_pacu$Chla.SA~compareChl_pacu$LifeStage) #not significant
+
+chl_ph2 = dunnTest(Chla.SA ~ Treatment,
+              data=compareChl_pacu,
+              method="bonferroni")    
+chl_ph2
+
+chl_ph3 = dunnTest(Chla.SA ~ LifeStage,
+              data=compareChl_pacu,
+              method="bonferroni")  
+chl_ph3
+```
+
+There is a significant effect of treatment on chlorophyll content. There is no effect of lifestage.  
+
+Coefficient of variation (CV):  
+```{r, results=TRUE}
+sd(compareChl$Chla.SA, na.rm=TRUE)/mean(compareChl$Chla.SA, na.rm=TRUE)
+
+CVc <- ddply(compareChl, c("Treatment", "Species", "LifeStage"), summarise,
+                mean = mean(Chla.SA, na.rm=TRUE),
+                sd   = sd(Chla.SA, na.rm=TRUE),
+                CV   = (sd / mean)
+)
+knitr::kable(CVc)
+```
+
+####**B) Dissecting Scope Tissue Thickness**   
+
+Assemble data frame of dissecting scope tissue thickness for each coral at Ambient and High treatments.    
+
+```{r, results=FALSE}
+#chlorophyll
+compareThick<-read.csv("Data/Bleaching/Bleaching_Scope_Thickness.csv", header=TRUE, sep=",", na.strings="NA")
+compareThick$Colony<-as.factor(compareThick$Colony)
+
+compareThick<-compareThick[c("Species", "LifeStage", "Colony", "Thickness", "Treatment", "Sample")]
+
+compareThick_mcap <- compareThick[which(compareThick$Species == "Montipora capitata"),]
+compareThick_pacu <- compareThick[which(compareThick$Species == "Pocillopora acuta"),]
+```
+
+Summarize and display a figure of mean tissue thickness by dissecting microscope.     
+
+```{r, results=TRUE}
+compare4<- ddply(compareThick, c("Species", "LifeStage", "Treatment"), summarise,
+                N    = length(Thickness[!is.na(Thickness)]),
+                mean = mean(Thickness, na.rm=TRUE),
+                sd   = sd(Thickness, na.rm=TRUE),
+                se   = sd / sqrt(N)
+)
+compare4
+
+CompareBleach4 <- ggplot(data=compare4, aes(x=Treatment, y=mean, group=LifeStage, shape=LifeStage, color=Treatment)) + 
+  scale_shape_manual(name = "Life Stage", values = c(19,21))+
+  facet_wrap(~Species)+
+  scale_color_manual(values=c("blue", "red"))+
+  geom_point(aes(color=Treatment), size=3, position=position_dodge(0.3)) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), color="black", width=0, linetype="solid", position=position_dodge(0.3), size=0.8) +
+  xlab("Treatment") +
+  ylab(expression(paste("Tissue Thickness (", mu, "m)"))) +
+  ylim(0,2800) +
+  theme_bw()+
+  theme_classic() +
+  theme(strip.text.x=element_text(face="italic")) +
+  theme(panel.background = element_blank()) +
+  theme(text = element_text(size=20),
+        panel.border = element_blank(), 
+        plot.background =element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.y = element_text(size=18, colour="black"),
+        axis.text.x = element_text(size=18, colour="black", face="plain"),
+        legend.title=element_text(),
+        legend.position="none",
+        plot.title=element_text(),
+        legend.text = element_text(size = 20),
+        axis.title.y=element_text(margin=margin(t = 0, r = 5, b = 0, l = 0), face="bold"), 
+        axis.title.x=element_text(margin=margin(t = 5, r = 0, b = 0, l = 0), face="bold"))
+CompareBleach4
+
+ggsave(filename="Figures/FigS1a.pdf", plot=CompareBleach4, dpi=300, width=6.5, height=8, units="in")
+```
+
+Analyze effect of treatment and lifestage on tissue thickness with a separate model for each species.   
+
+*Montipora capitata*: 
+```{r, results=FALSE}
+modelB4a<-lmer(Thickness ~ Treatment * LifeStage + (1|Colony), data=compareThick_mcap)
+summary(modelB4a)
+anova(modelB4a, type=2)
+```
+
+Assumptions of analysis are not met.   
+```{r, results=TRUE}
+qqPlot(residuals(modelB4a))
+compareThick_mcap$Group<-paste(compareThick_mcap$Treatment, compareThick_mcap$LifeStage)
+compareThick_mcap$Group<-as.factor(compareThick_mcap$Group)
+bartlett.test(residuals(modelB4a)~compareThick_mcap$Group) #not violated
+```
+
+```{r, results=TRUE}
+kruskal.test(compareThick_mcap$Thickness ~ compareThick_mcap$Treatment)
+kruskal.test(compareThick_mcap$Thickness ~ compareThick_mcap$LifeStage)
+
+thick_ph2 = dunnTest(Thickness ~ Treatment,
+              data=compareThick_mcap,
+              method="bonferroni")    
+thick_ph2
+
+thick_ph3 = dunnTest(Thickness ~ LifeStage,
+              data=compareThick_mcap,
+              method="bonferroni")  
+thick_ph3
+```
+
+There is an effect of lifestage in *M. capitata*.  
+
+*Pocillopora acuta*: 
+
+```{r, results=TRUE}
+kruskal.test(compareThick_pacu$Thickness ~ compareThick_pacu$Treatment)
+kruskal.test(compareThick_pacu$Thickness ~ compareThick_pacu$LifeStage)
+
+thick_ph2 = dunnTest(Thickness ~ Treatment,
+              data=compareThick_pacu,
+              method="bonferroni")    
+thick_ph2
+
+thick_ph3 = dunnTest(Thickness ~ LifeStage,
+              data=compareThick_pacu,
+              method="bonferroni")  
+thick_ph3
+```
+
+There was no effect of treatment or lifestage on tissue thickness in *P. acuta*.  
+
+Coefficient of variation (CV):  
+```{r, results=TRUE}
+sd(compareThick$Thickness, na.rm=TRUE)/mean(compareThick$Thickness, na.rm=TRUE)
+
+CVd <- ddply(compareThick, c("Treatment", "Species", "LifeStage"), summarise,
+                mean = mean(Thickness, na.rm=TRUE),
+                sd   = sd(Thickness, na.rm=TRUE),
+                CV   = (sd / mean)
+)
+knitr::kable(CVd)
+```
+
+####**C) Coral Pigmentation / Color Scores**   
+
+Assemble data frame of coral pigmentation measured as a ratio of coral color : white in Fiji.     
+
+```{r, results=FALSE}
+compareColor<-read.csv("Data/Bleaching/Bleaching_Coral_Color.csv", header=TRUE, sep=",", na.strings="NA")
+compareColor$Colony<-as.factor(compareColor$Colony)
+
+compareColor<-compareColor[c("Species", "LifeStage", "Colony", "Coral.Percent.White", "Treatment", "Sample")]
+
+compareColor_mcap <- compareColor[which(compareColor$Species == "Montipora capitata"),]
+compareColor_pacu <- compareColor[which(compareColor$Species == "Pocillopora acuta"),]
+```
+
+Summarize and display a chart of mean pigmentation (coral:white).   
+
+```{r, results=TRUE}
+compare5<- ddply(compareColor, c("Species", "LifeStage", "Treatment"), summarise,
+                N    = length(Coral.Percent.White[!is.na(Coral.Percent.White)]),
+                mean = mean(Coral.Percent.White, na.rm=TRUE),
+                sd   = sd(Coral.Percent.White, na.rm=TRUE),
+                se   = sd / sqrt(N)
+)
+compare5
+
+CompareBleach5 <- ggplot(data=compare5, aes(x=Treatment, y=mean, group=LifeStage, shape=LifeStage, color=Treatment)) + 
+  scale_shape_manual(name = "Life Stage", values = c(19,21))+
+  facet_wrap(~Species)+
+  scale_color_manual(values=c("blue", "red"))+
+  geom_point(aes(color=Treatment), size=3, position=position_dodge(0.3)) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), color="black", width=0, linetype="solid", position=position_dodge(0.3), size=0.8) +
+  xlab("Treatment") +
+  ylab(expression(paste("Bleaching Score (Coral : White)"))) +
+  ylim(0,0.75) +
+  theme_bw()+
+  theme_classic() +
+  theme(strip.text.x=element_text(face="italic")) +
+  theme(panel.background = element_blank()) +
+  theme(text = element_text(size=20),
+        panel.border = element_blank(), 
+        plot.background =element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.y = element_text(size=18, colour="black"),
+        axis.text.x = element_text(size=18, colour="black", face="plain"),
+        legend.title=element_text(),
+        legend.position="right",
+        plot.title=element_text(),
+        legend.text = element_text(size = 20),
+        axis.title.y=element_text(margin=margin(t = 0, r = 5, b = 0, l = 0), face="bold"), 
+        axis.title.x=element_text(margin=margin(t = 5, r = 0, b = 0, l = 0), face="bold"))
+CompareBleach5
+
+ggsave(filename="Figures/FigS1c.pdf", plot=CompareBleach5, dpi=300, width=8, height=8, units="in")
+```
+
+Analyze effect of treatment and lifestage on color with a separate model for each species.  
+
+*Montipora capitata*: 
+```{r, results=FALSE}
+modelB5a<-lmer(Coral.Percent.White ~ Treatment * LifeStage + (1|Colony), data=compareColor_mcap)
+summary(modelB5a)
+anova(modelB5a, type=2)
+qqPlot(residuals(modelB5a)) #violated 
+```
+
+Assumptions of analysis are not met in a linear model (normality) and are not improved with transformation.  
+
+```{r, results=FALSE}
+compareColor_mcap$tdata<-sqrt(compareColor_mcap$Coral.Percent.White)
+modelB5aT<-lmer(tdata ~ Treatment * LifeStage + (1|Colony), data=compareColor_mcap)
+
+qqPlot(residuals(modelB5aT)) #violated
+compareColor_mcap$Group<-paste(compareColor_mcap$Treatment, compareColor_mcap$LifeStage)
+compareColor_mcap$Group<-as.factor(compareColor_mcap$Group)
+bartlett.test(residuals(modelB5aT)~compareColor_mcap$Group) #not violated
+```
+
+Conduct a non-parametric analysis.  
+
+```{r, results=TRUE}
+kruskal.test(compareColor_mcap$Coral.Percent.White ~ compareColor_mcap$Treatment)
+kruskal.test(compareColor_mcap$Coral.Percent.White ~ compareColor_mcap$LifeStage)
+
+color_ph2 = dunnTest(Coral.Percent.White ~ Treatment,
+              data=compareColor_mcap,
+              method="bonferroni")    
+color_ph2
+
+color_ph3 = dunnTest(Coral.Percent.White ~ LifeStage,
+              data=compareColor_mcap,
+              method="bonferroni")  
+color_ph3
+```
+
+In *M. capitata*, treatment is significant.  
+
+*Pocillopora acuta*:  
+```{r, results=FALSE}
+modelB5b<-lmer(Coral.Percent.White~LifeStage * Treatment + (1|Colony), data=compareColor_pacu)
+summary(modelB5b)
+anova(modelB5b, type=2)
+
+emm = emmeans(modelB5b, ~ Treatment, adjust="tukey")
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+emm = emmeans(modelB5b, ~ LifeStage, adjust="tukey")
+cld(emm, Letters=c(LETTERS)) #letter display
+pairs(emm)
+
+emm = emmeans(modelB5b, ~ LifeStage * Treatment, adjust="tukey")
+cld(emm, Letters=c(LETTERS)) #letter display
+```
+
+```{r, results=FALSE}
+qqPlot(residuals(modelB5b))
+compareColor_pacu$Group<-paste(compareColor_pacu$Treatment, compareColor_pacu$LifeStage)
+bartlett.test(residuals(modelB5b)~compareColor_pacu$Group)
+```
+Conduct non-parametric test.  
+
+```{r, results=TRUE}
+kruskal.test(compareColor_pacu$Coral.Percent.White ~ compareColor_pacu$Treatment)
+kruskal.test(compareColor_pacu$Coral.Percent.White ~ compareColor_pacu$LifeStage)
+
+color_ph2 = dunnTest(Coral.Percent.White ~ Treatment,
+              data=compareColor_pacu,
+              method="bonferroni")    
+color_ph2
+
+color_ph3 = dunnTest(Coral.Percent.White ~ LifeStage,
+              data=compareColor_pacu,
+              method="bonferroni")  
+color_ph3
+```
+
+
+There is an effect of treatment in *P. acuta*.   
+
+
+Coefficient of variation (CV):  
+```{r, results=TRUE}
+sd(compareColor$Coral.Percent.White, na.rm=TRUE)/mean(compareColor$Coral.Percent.White, na.rm=TRUE)
+
+CVe <- ddply(compareColor, c("Treatment", "Species", "LifeStage"), summarise,
+                mean = mean(Coral.Percent.White, na.rm=TRUE),
+                sd   = sd(Coral.Percent.White, na.rm=TRUE),
+                CV   = (sd / mean)
+)
+knitr::kable(CVe)
+```
+
+####**D) Correlations Between Factors**   
+
+Assemble correlation data.   
+
+```{r, results=FALSE}
+#generate a datasheet with all values summarized by sample number at the final timepoint
+corr_red <- bleach2 %>%
+  filter(Timepoint == "Final")
+corr_thick <- bleach1 %>%
+  filter(Timepoint == "Final")
+
+#remove unnecessary columns
+corr_red<-corr_red[c("Sample", "Red")]
+corr_thick<-corr_thick[c("Sample", "Thickness")]
+corr_chl<-compareChl[c("Sample", "Chla.SA")]
+corr_scope<-compareThick[c("Sample", "Thickness")]
+corr_scope<-rename(corr_scope, c("Sample"="Sample", "Thickness"="Scope"))
+corr_color<-compareColor[c("Sample", "Coral.Percent.White")]
+correlations<-left_join(corr_red, corr_thick, by=c("Sample"))
+correlations<-left_join(correlations, corr_scope, by=c("Sample"))
+correlations<-left_join(correlations, corr_color, by=c("Sample"))
+correlations<-left_join(correlations, corr_chl, by=c("Sample"))
+
+#add in identifying information
+correlations$Species<-bleach1$Species[match(correlations$Sample,bleach1$Sample)]
+correlations$LifeStage<-bleach1$LifeStage[match(correlations$Sample,bleach1$Sample)]
+correlations$Treatment<-bleach1$Treatment[match(correlations$Sample,bleach1$Sample)]
+```
+
+Check for normality of data. Use a Spearman non-parametric test in analysis of dissecting microscope tissue thickness and chlorophyll data as they are not normal. Use a Pearson correlation for normally distributed confocal thickness, confocal fluorescence, and coral color.  
+```{r, results=TRUE}
+shapiro.test(correlations$Chla.SA) #non normal
+shapiro.test(correlations$Thickness) #normal
+shapiro.test(correlations$Red) #normal
+shapiro.test(correlations$Scope) #non normal
+shapiro.test(correlations$Coral.Percent.White) #normal
+```
+
+#####1. Conduct correlation of Chlorophyll and Symbiodiniaceae Fluorescence.  
+```{r, results=TRUE}
+cor.test(correlations$Chla.SA, correlations$Red, method = "spearman")
+```
+
+There is a significant correlation between Chlorophyll and Red values. Plot this relationship.  
+
+```{r, results=TRUE}
+CorBleachRed<-ggplot(correlations, aes(x=Chla.SA, y=Red)) + 
+  geom_point(aes(color=Treatment, shape=Species), size=3) +
+  scale_color_manual(name="Treatment",
+                    values=c("blue", "red"))+
+  scale_shape_manual(name="Species",
+                    values=c(19,21))+
+  theme_classic()+
+  ylim(0,60) +
+  geom_smooth(method=lm, se=FALSE, color="black", linetype="solid") +
+  theme(text = element_text(size = 18))+
+  theme(axis.text = element_text(size = 18, color="black"))+
+  theme(axis.title = element_text(size = 18, face="bold"))+
+  theme(legend.title = element_text(size = 18, face="bold"))+
+  theme(legend.text = element_text(size = 18, color="black", face="italic"))+
+  ylab("Symbiodiniaceae Fluorescence (% RI)") +
+  geom_text(x=0.22, y=2, fontface="plain", label="r=0.67, p<0.01", size=6) +
+  xlab(expression(bold(paste("Chlorophyll ", alpha," ("*mu*"g cm"^-2,")"))))
+CorBleachRed
+
+ggsave(filename="Figures/Fig2e.pdf", plot=CorBleachRed, dpi=300, width=10, height=8, units="in")
+```
+
+#####2. Conduct correlation of scope tissue thickness and confocal tissue thickness.  
+
+```{r, results=TRUE}
+cor.test(correlations$Scope, correlations$Thickness, method = "spearman")
+```
+
+There is a significant correlation between Scope and confocal thickness values. Plot this relationship.  
+
+```{r, results=TRUE}
+CorBleachThick<-ggplot(correlations, aes(x=Scope, y=Thickness)) + 
+  geom_point(aes(color=Treatment, shape=Species), size=3) +
+  scale_color_manual(name="Treatment",
+                    values=c("blue", "red"))+
+  scale_shape_manual(name="Species",
+                    values=c(19,21))+
+  theme_classic()+
+  geom_smooth(method=lm, se=FALSE, color="black", linetype="solid") +
+  theme(text = element_text(size = 18))+
+  theme(axis.text = element_text(size = 18, color="black"))+
+  theme(axis.title = element_text(size = 18, face="bold"))+
+  theme(legend.title = element_text(size = 18, face="bold"))+
+  theme(legend.text = element_text(size = 18, color="black", face="italic"))+
+  ylab(expression(bold(paste("Depth of Fluorescence ("*mu*"m)")))) +
+  geom_text(x=1800, y=400, fontface="plain", label="r=0.89, p<0.01", size=6) +
+  xlab(expression(bold(paste("Tissue Thickness ("*mu*"m)"))))
+CorBleachThick
+
+ggsave(filename="Figures/Fig2d.pdf", plot=CorBleachThick, dpi=300, width=10, height=8, units="in")
+```
+
+#####3. Conduct correlation of confocal fluorescence and coral color.  
+
+```{r, results=TRUE}
+cor.test(correlations$Red, correlations$Coral.Percent.White, method = "pearson") #significantly correlated
+```
+
+There is a significant correlation between Scope and confocal thickness values. Plot this relationship. We expect an inverse relationship as proportion white indicates increasing paling.  
+
+```{r, results=TRUE}
+CorBleachColor<-ggplot(correlations, aes(x=Coral.Percent.White, y=Red)) + 
+  geom_point(aes(color=Treatment, shape=Species), size=3) +
+  scale_color_manual(name="Treatment",
+                    values=c("blue", "red"))+
+  scale_shape_manual(name="Species",
+                    values=c(19,21))+
+  theme_classic()+
+  ylim(0,65)+
+  geom_smooth(method=lm, se=FALSE, color="black", linetype="solid") +
+  theme(text = element_text(size = 18))+
+  theme(axis.text = element_text(size = 18, color="black"))+
+  theme(axis.title = element_text(size = 18, face="bold"))+
+  theme(legend.title = element_text(size = 18, face="bold"))+
+  theme(legend.text = element_text(size = 18, color="black", face="italic"))+
+  ylab(expression(bold(paste("Symbiodiniaceae Fluorescence (% RI)")))) +
+  geom_text(x=0.6, y=1, fontface="plain", label="r=-0.57, p<0.01", size=6) +
+  xlab(expression(bold(paste("Bleaching Score (Coral Color : White)"))))
+CorBleachColor
+
+ggsave(filename="Figures/Fig2f.pdf", plot=CorBleachColor, dpi=300, width=10, height=8, units="in")
+```
+
+Conclusions:  
+(1) LSCM red values are significantly correlated with chlorophyll content.  
+(2) LSCM tissue thickness is significantly correlated to dissecting microscope tissue thickness.  
+(3) LSCM red values are significantly correlated to coral pigmentation.  
+(4) LSCM and comparative methodologies produce similar results, but with slight differences discussed in manuscript.  
