@@ -1,7 +1,7 @@
 ---
-title: Evaluation of confocal microscopy for measurement of reef-building coral tissue thickness and Symbiodiniaceae communities
-author: "AS Huffmyer, SB Matsuda, AE Eggers, JD Lemus, RD Gates"
-date: '2019'
+title: Evaluation of laser scanning confocal microscopy as a method for characterizing reef-building coral tissue thickness and Symbiodiniaceae fluorescence  
+author: "AS Huffmyer, SB Matsuda, AR Eggers, JD Lemus, RD Gates"
+date: '2020'
 output:
   html_document:
     code_folding: hide
@@ -556,7 +556,7 @@ There is a significant correlation between cell density and LSCM red values.
 (2) Trends between species were similar between hemocytometer and LSCM measurements and were significantly correlated in adult samples.    
 (3) Low r value in correlation likely reflects decrease in chlorophyll fluorescence following decalcification and fixation.     
 
-##  4. Coefficient of variation    
+##  4. Coefficients of variation    
 
 Summarize variation of each metric for each species.   
 
