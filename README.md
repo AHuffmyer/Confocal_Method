@@ -3,13 +3,13 @@
 
 **Authors:** Huffmyer AS, SB Matsuda, AR Eggers, JD Lemus, RD Gates
 
-**Corresponding Author:** AS Huffmyer, ashuffmyer@gmail.com, ashuff@hawaii.edu
+**Corresponding Author:** AS Huffmyer, ashuffmyer@gmail.com
 
 This study describes and evaluates the utility of laser-scanning confocal microscopy to measure physiological condition (Symbiodiniaceae fluorescence and depth of fluorescence) in reef-building corals.
 
 **Abstract:**
 
-Predicting the sensitivity of reef-building corals to disturbance, including bleaching, requires an understanding of physiological responses to stressors, which may be limited by destructive sampling and the capacity of common methodologies to characterize early life history stages. We developed a new methodology using laser scanning confocal microscopy (LSCM) to measure and track the physiological condition of corals. In a thermal stress experiment, we used LSCM to track coral condition during bleaching in adults and juveniles of two species, _Montipora capitata_ and _Pocillopora acuta_. Depth of fluorescence in coral tissues provides a proxy measure of tissue thickness while fluorescence of Symbiodiniaceae populations relates to both population density and chlorophyll- content. In response to thermal stress, here were significant shifts in tissue thickness and Symbiodiniaceae fluorescence with differences in condition between life stages. This method is particularly well-suited for detecting shifts in physiological condition of living corals, especially in small juvenile colonies.  
+Predicting the sensitivity of reef-building corals to disturbance, including bleaching, requires an understanding of physiological responses to stressors, which may be limited by destructive sampling and the capacity of common methodologies to characterize early life history stages. We developed a new methodology using laser scanning confocal microscopy (LSCM) to measure and track the physiological condition of corals. In a thermal stress experiment, we used LSCM to track coral condition during bleaching in adults and juveniles of two species, _Montipora capitata_ and _Pocillopora acuta_. Depth of fluorescence in coral tissues provides a proxy measure of tissue thickness while Symbiodiniaceae population fluorescence relates to both population density and chlorophyll-a content. In response to thermal stress, there were significant shifts in tissue thickness and Symbiodiniaceae fluorescence with differences between life stages. This method is particularly well-suited for detecting shifts in physiological condition of living corals in laboratory studies, especially in small juvenile colonies. 
 
 **Data, Scripts, and Outputs:**
 
