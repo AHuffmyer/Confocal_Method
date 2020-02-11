@@ -3,7 +3,7 @@
 
 **Authors:** Huffmyer AS, SB Matsuda, AR Eggers, JD Lemus, RD Gates
 
-**Corresponding Author:** AS Huffmyer, ashuffmyer@gmail.com, ashuff@hawaii.edu
+**Corresponding Author:** AS Huffmyer, ashuffmyer@gmail.com
 
 This study describes and evaluates the utility of laser-scanning confocal microscopy to measure physiological condition (Symbiodiniaceae fluorescence and depth of fluorescence) in reef-building corals.
 
