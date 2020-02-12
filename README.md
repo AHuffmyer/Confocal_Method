@@ -5,6 +5,8 @@
 
 **Corresponding Author:** AS Huffmyer, ashuffmyer@gmail.com
 
+**GitHub Repository:** github.com/AHuffmyer/LSCM_Coral_Methods
+
 This study describes and evaluates the utility of laser-scanning confocal microscopy to measure physiological condition (Symbiodiniaceae fluorescence and depth of fluorescence) in reef-building corals.
 
 **Abstract:**
