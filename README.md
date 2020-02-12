@@ -1,4 +1,6 @@
 
+[![DOI](https://zenodo.org/badge/155638648.svg)](https://zenodo.org/badge/latestdoi/155638648)
+
 **Study:** Evaluation of laser scanning confocal microscopy as a method for characterizing reef-building coral tissue thickness and Symbiodiniaceae fluorescence
 
 **Authors:** Huffmyer AS, SB Matsuda, AR Eggers, JD Lemus, RD Gates
